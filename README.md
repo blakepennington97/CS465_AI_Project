@@ -1,2 +1,3 @@
 # CS465_AI_Project
-TBD
+A project contributed to by Zac Petro and Blake Pennington
+
