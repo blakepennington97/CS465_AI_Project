@@ -48,7 +48,29 @@ def draw_scatterplot(x_data, x_label, y_data, y_label):
     plt.ylim(0, 5)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
-    ax.scatter(x_data, y_data, s=30)
+    ax.scatter(x_data, y_data, s=25)
     plt.show()
 
-# draw_scatterplot(gt['avg_romance_rating'], 'Avg romance rating', gt['avg_comedy_rating'], 'Avg comedy ratings')
+# draw_scatterplot(gt['avg_romance_rating'], 'Avg romance rating', gt['avg_comedy_rating'], 'Avg comedy rating')
+
+# Use K-means to break the data down into hopefully 3 groups
+# 1. People who like romance, but not comedy
+# 2. People who like comedy, but not romance
+# 3. People who like both romance and comedy
+
+k_means = KMeans(init="random", n_clusters=3, random_state=99)
+labels = k_means.fit_predict(gt)
+
+def plot_kmeans(gt, labels):
+    plot = plt.figure(figsize=(8,8))
+    ax = plot.add_subplot(111)
+    plt.xlim(0, 5)
+    plt.ylim(0, 5)
+    ax.set_xlabel('Avg romance rating')
+    ax.set_ylabel('Avg comedy rating')
+
+    ax.scatter(x=gt['avg_romance_rating'], y=gt['avg_comedy_rating'], c=labels, s=25, cmap='viridis')
+
+    plt.show()
+
+plot_kmeans(gt, labels)
