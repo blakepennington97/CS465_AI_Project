@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.metrics import mean_squared_error
+from mpl_toolkits.axes_grid1 import make_axes_locatable
 
 
 # Compare preferences of romance vs. comedy movies
@@ -12,7 +13,6 @@ def compare_genre_tastes(movies, ratings, genres, columns):
     for genre in genres:
         genre_movies = movies[movies['genres'].str.contains(genre)]
         avg_genre_rating = ratings[ratings['movieId'].isin(genre_movies['movieId'])].loc[:, ['userId', 'rating']].groupby(['userId'])['rating'].mean().round(2)
-        
         gt = pd.concat([gt, avg_genre_rating], axis=1)
         
     gt.columns = columns
@@ -38,9 +38,70 @@ def plot_kmeans(gt, labels):
     plt.ylim(0, 5)
     ax.set_xlabel('Avg romance rating')
     ax.set_ylabel('Avg comedy rating')
-
     ax.scatter(x=gt['avg_romance_rating'], y=gt['avg_comedy_rating'], c=labels, s=25, cmap='viridis')
+    plt.show()
 
+
+# Gets movies who have a high volume of ratings
+def get_most_rated_movies(user_ratings, max_number_movies):
+    # Count occurences and add to table
+    user_ratings_of_movies = user_ratings.append(user_ratings.count(), ignore_index=True)
+    # Sort occurences
+    sorted_user_ratings = user_ratings_of_movies.sort_values((len(user_ratings) - 1), axis=1, ascending=False)
+    sorted_user_ratings = sorted_user_ratings.drop(sorted_user_ratings.tail(1).index)
+    # Return subset of these movies, exluding movies with low volume of ratings
+    most_rated_movies = sorted_user_ratings.iloc[:, :max_number_movies]
+    return most_rated_movies
+
+
+# Gets users who have a high volume of ratings from the movies who have been rated the most
+def get_ideal_users(most_rated_movies, max_number_users):
+    # Count occurences of user ratings
+    most_rated_movies['count'] = pd.Series(most_rated_movies.count(axis=1))
+    # Sort counts in descending order
+    most_ideal_users = most_rated_movies.sort_values('count', ascending=False)
+    # Grab only top portion of these users
+    selected_ideal_users = most_ideal_users[:max_number_users]
+    selected_ideal_users = selected_ideal_users.drop('count', axis=1)
+    return selected_ideal_users
+
+
+# Filters the movie db based on most popular movies and users who have rated the most
+def get_dense_dataset(user_movie_ratings, max_number_movies, max_number_users):
+    most_rated_movies = get_most_rated_movies(user_movie_ratings, max_number_movies)
+    most_users_rating = get_ideal_users(most_rated_movies, max_number_users)
+    return most_users_rating
+
+
+# Draws heatmap based on data
+def draw_heatmap(data, axis_labels=True):
+    fig = plt.figure(figsize=(15,4))
+    ax = plt.gca()
+    heatmap = ax.imshow(data, interpolation='nearest', vmin=0, vmax=5, aspect='auto')
+
+    if axis_labels:
+        ax.set_yticks(np.arange(data.shape[0]) , minor=False)
+        ax.set_xticks(np.arange(data.shape[1]) , minor=False)
+        ax.invert_yaxis()
+        ax.xaxis.tick_top()
+        labels = data.columns.str[:40]
+        ax.set_xticklabels(labels, minor=False)
+        ax.set_yticklabels(data.index, minor=False)
+        plt.setp(ax.get_xticklabels(), rotation=90)
+    else:
+        ax.get_xaxis().set_visible(False)
+        ax.get_yaxis().set_visible(False)
+    
+    ax.grid(False)
+    ax.set_ylabel('UserID')
+
+    # Separate heatmap from color bar
+    divider = make_axes_locatable(ax)
+    cax = divider.append_axes("right", size="5%", pad=0.05)
+
+    # Color bar
+    cbar = fig.colorbar(heatmap, ticks=[5, 4, 3, 2, 1, 0], cax=cax)
+    cbar.ax.set_yticklabels(['5 stars', '4 stars', '3 stars', '2 stars', '1 stars', '0 stars'])
     plt.show()
 
 
@@ -75,6 +136,21 @@ if __name__ == "__main__":
     # 2. People who like comedy, but not romance
     # 3. People who like both romance and comedy
 
+    #TODO: should we determine ideal number of clusters? maybe you already did this and that's how you got 3?
     k_means = KMeans(init="random", n_clusters=3, random_state=99)
     labels = k_means.fit_predict(gt)
     plot_kmeans(gt, labels)
+
+    # ----------------BLAKE CODE BELOW------------------
+
+    # Shape a new dataset in the form userID vs user rating for each movie
+    ratings_vs_movie = pd.merge(ratings, movies[['movieId', 'title']], on='movieId')
+    # Convert to a pivot table based on userID
+    user_movie_ratings = pd.pivot_table(ratings_vs_movie, index='userId', columns='title', values='rating')
+    # This pivot table has a lot of NULL values due to lack of data on certain movies
+    # Therefore, repeat process above, but with only the top rated movies and the users who rated the most
+    max_number_movies = 30
+    max_number_users = 18
+    most_rated_movies_and_user_ratings = get_dense_dataset(user_movie_ratings, max_number_movies, max_number_users)
+    # Draw heatmap based on the formatted data gathered above to show distribution
+    draw_heatmap(most_rated_movies_and_user_ratings)
