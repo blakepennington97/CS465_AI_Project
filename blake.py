@@ -45,9 +45,9 @@ def plot_kmeans(gt, labels):
 # Gets movies who have a high volume of ratings
 def get_most_rated_movies(user_ratings, max_number_movies):
     # Count occurences and add to table
-    user_ratings_of_movies = user_ratings.append(user_ratings.count(), ignore_index=True)
+    user_ratings = user_ratings.append(user_ratings.count(), ignore_index=True)
     # Sort occurences
-    sorted_user_ratings = user_ratings_of_movies.sort_values((len(user_ratings) - 1), axis=1, ascending=False)
+    sorted_user_ratings = user_ratings.sort_values((len(user_ratings) - 1), axis=1, ascending=False)
     sorted_user_ratings = sorted_user_ratings.drop(sorted_user_ratings.tail(1).index)
     # Return subset of these movies, exluding movies with low volume of ratings
     most_rated_movies = sorted_user_ratings.iloc[:, :max_number_movies]
@@ -61,16 +61,16 @@ def get_ideal_users(most_rated_movies, max_number_users):
     # Sort counts in descending order
     most_ideal_users = most_rated_movies.sort_values('count', ascending=False)
     # Grab only top portion of these users
-    selected_ideal_users = most_ideal_users[:max_number_users]
-    selected_ideal_users = selected_ideal_users.drop('count', axis=1)
+    selected_ideal_users = most_ideal_users.iloc[:max_number_users, :]
+    selected_ideal_users = selected_ideal_users.drop(['count'], axis=1)
     return selected_ideal_users
 
 
 # Filters the movie db based on most popular movies and users who have rated the most
 def get_dense_dataset(user_movie_ratings, max_number_movies, max_number_users):
     most_rated_movies = get_most_rated_movies(user_movie_ratings, max_number_movies)
-    most_users_rating = get_ideal_users(most_rated_movies, max_number_users)
-    return most_users_rating
+    most_rated_movies = get_ideal_users(most_rated_movies, max_number_users)
+    return most_rated_movies
 
 
 # Draws heatmap based on data
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # 3. People who like both romance and comedy
 
     #TODO: should we determine ideal number of clusters? maybe you already did this and that's how you got 3?
-    k_means = KMeans(init="random", n_clusters=3, random_state=99)
+    k_means = KMeans(init="random", n_clusters=7, random_state=99)
     labels = k_means.fit_predict(gt)
     plot_kmeans(gt, labels)
 
