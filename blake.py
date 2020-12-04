@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from sklearn.cluster import KMeans
 from sklearn.metrics import mean_squared_error
 from mpl_toolkits.axes_grid1 import make_axes_locatable
+from scipy.sparse import csr_matrix
 
 
 # Compare preferences of romance vs. comedy movies
@@ -105,6 +106,55 @@ def draw_heatmap(data, axis_labels=True):
     plt.show()
 
 
+# Visualize a given cluster as a heatmap
+def draw_clusters(data, max_users, max_movies):
+    c=1
+    for cluster_id in data.group.unique():
+        # To improve visibility, we're showing at most max_users users and max_movies movies per cluster.
+        # You can change these values to see more users & movies per cluster
+        d = data[data.group == cluster_id].drop(['index', 'group'], axis=1)
+        n_users_in_cluster = d.shape[0]
+        d = get_dense_dataset(d, max_movies, max_users)
+        d = d.reindex_axis(d.mean().sort_values(ascending=False).index, axis=1)
+        d = d.reindex_axis(d.count(axis=1).sort_values(ascending=False).index)
+        d = d.iloc[:max_users, :max_movies]
+        n_users_in_plot = d.shape[0]
+        
+        # Show clusters with more than 9 users, to avoid crowding
+        if len(d) > 9:
+            print('cluster # {}'.format(cluster_id))
+            print('# of users in cluster: {}.'.format(n_users_in_cluster), '# of users in plot: {}'.format(n_users_in_plot))
+            fig = plt.figure(figsize=(15,4))
+            ax = plt.gca()
+
+            ax.invert_yaxis()
+            ax.xaxis.tick_top()
+            labels = d.columns.str[:40]
+
+            ax.set_yticks(np.arange(d.shape[0]) , minor=False)
+            ax.set_xticks(np.arange(d.shape[1]) , minor=False)
+            ax.set_xticklabels(labels, minor=False)            
+            ax.get_yaxis().set_visible(False)
+
+            heatmap = plt.imshow(d, vmin=0, vmax=5, aspect='auto')
+
+            ax.set_xlabel('movies')
+            ax.set_ylabel('User id')
+
+            divider = make_axes_locatable(ax)
+            cax = divider.append_axes("right", size="5%", pad=0.05)
+
+            # Color bar
+            cbar = fig.colorbar(heatmap, ticks=[5, 4, 3, 2, 1, 0], cax=cax)
+            cbar.ax.set_yticklabels(['5 stars', '4 stars', '3 stars', '2 stars', '1 stars', '0 stars'])
+
+            plt.setp(ax.get_xticklabels(), rotation=90, fontsize=9)
+            plt.tick_params(axis='both', which='both', bottom='off', top='off', left='off', labelbottom='off', labelleft='off') 
+            #print('cluster # {} \n(Showing at most {} users and {} movies)'.format(cluster_id, max_users, max_movies))
+
+            plt.show()
+
+
 if __name__ == "__main__":
     # pd.set_option("display.max_rows", None, "display.max_columns", None)
 
@@ -139,14 +189,14 @@ if __name__ == "__main__":
     #TODO: should we determine ideal number of clusters? maybe you already did this and that's how you got 3?
     k_means = KMeans(init="random", n_clusters=7, random_state=99)
     labels = k_means.fit_predict(gt)
-    plot_kmeans(gt, labels)
+    #plot_kmeans(gt, labels)
 
     # ----------------BLAKE CODE BELOW------------------
 
     # Shape a new dataset in the form userID vs user rating for each movie
-    ratings_vs_movie = pd.merge(ratings, movies[['movieId', 'title']], on='movieId')
+    ratings_vs_title = pd.merge(ratings, movies[['movieId', 'title']], on='movieId')
     # Convert to a pivot table based on userID
-    user_movie_ratings = pd.pivot_table(ratings_vs_movie, index='userId', columns='title', values='rating')
+    user_movie_ratings = pd.pivot_table(ratings_vs_title, index='userId', columns='title', values='rating')
     # This pivot table has a lot of NULL values due to lack of data on certain movies
     # Therefore, repeat process above, but with only the top rated movies and the users who rated the most
     max_number_movies = 30
@@ -154,3 +204,18 @@ if __name__ == "__main__":
     most_rated_movies_and_user_ratings = get_dense_dataset(user_movie_ratings, max_number_movies, max_number_users)
     # Draw heatmap based on the formatted data gathered above to show distribution
     draw_heatmap(most_rated_movies_and_user_ratings)
+    # Apply spare csr matrix to this to help with NULL values
+    max_number_movies = 1000
+    most_rated_movies_1000 = get_most_rated_movies(user_movie_ratings, max_number_movies)
+    # sp_arr = csr_matrix(most_rated_movies_1000.values)
+    # sdf = pd.DataFrame.sparse.from_spmatrix(sp_arr)
+    # sparse_ratings = sdf.sparse.to_coo()
+    sparse_ratings = csr_matrix(pd.SparseDataFrame(most_rated_movies_1000).to_coo())
+    # Apply KMeans to this dense data (ironically named sparse_data because of sparse() func)
+    predictions = KMeans(n_clusters=3, algorithm='full').fit_predict(sparse_ratings)
+    # Now visualize the clusters as a heatmap
+    max_number_movies = 50
+    max_number_users = 70
+    clusters = pd.concat([most_rated_movies_1000.reset_index(), pd.DataFrame({'group': predictions})], axis=1)
+    draw_clusters(clusters, max_number_users, max_number_movies)
+
