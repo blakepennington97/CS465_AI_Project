@@ -106,7 +106,7 @@ def draw_heatmap(data, axis_labels=True):
     plt.show()
 
 
-# Visualize a given cluster as a heatmap
+# Visualize multiple clusters as a heatmap
 def draw_clusters(data, max_users, max_movies):
     c=1
     for cluster_id in data.group.unique():
@@ -195,23 +195,54 @@ if __name__ == "__main__":
 
     # Shape a new dataset in the form userID vs user rating for each movie
     ratings_vs_title = pd.merge(ratings, movies[['movieId', 'title']], on='movieId')
+
     # Convert to a pivot table based on userID
     user_movie_ratings = pd.pivot_table(ratings_vs_title, index='userId', columns='title', values='rating')
+
     # This pivot table has a lot of NULL values due to lack of data on certain movies
     # Therefore, repeat process above, but with only the top rated movies and the users who rated the most
     max_number_movies = 30
     max_number_users = 18
     most_rated_movies_and_user_ratings = get_dense_dataset(user_movie_ratings, max_number_movies, max_number_users)
+
     # Draw heatmap based on the formatted data gathered above to show distribution
     draw_heatmap(most_rated_movies_and_user_ratings)
+
     # Apply spare csr matrix to this to help with NULL values
     most_rated_movies_1k = get_most_rated_movies(user_movie_ratings, 1000)
     sparse_ratings = csr_matrix(pd.SparseDataFrame(most_rated_movies_1k).to_coo())
+
     # Cluster based on the sparse matrix
     predictions = KMeans(n_clusters=20, algorithm='full').fit_predict(sparse_ratings)
+
     # Now visualize the clusters as a heatmap
     max_number_movies = 50
     max_number_users = 70
     clusters = pd.concat([most_rated_movies_1k.reset_index(), pd.DataFrame({'group': predictions})], axis=1)
     draw_clusters(clusters, max_number_users, max_number_movies)
+
+    # Pick a cluster, then display the highest density portion of that in a heatmap
+    cluster_no = 0
+    max_number_users = 75
+    max_number_movies = 300
+    cluster = clusters[clusters.group == cluster_no].drop(['index', 'group'], axis=1)
+    cluster = get_dense_dataset(cluster, max_number_movies, max_number_users)
+    draw_heatmap(cluster, axis_labels=False)
+
+    # Show the top 20 most-liked movies in the cluster
+    cluster.fillna('').head(20)
+
+    # Suppose a user is interested in watching Forrest Gump, so print the predicted value of how much she would like it
+    #movie_name = "Forrest Gump (1994)"
+    #cluster[movie_name].mean()
+
+    # Now predict User 10's results based on their cluster
+    userID = 10
+    users_ratings = cluster.loc[userID, :]
+    users_unrated_movies = users_ratings[users_ratings.isnull()]
+    avg_ratings = pd.concat([users_unrated_movies, cluster.mean()], axis=1, join='inner').loc[:, 0]
+
+    # Display user's top 20 picks
+    avg_ratings.sort_values(ascending=False)[:20]
+    print(avg_ratings)
 
