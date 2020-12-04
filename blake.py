@@ -242,7 +242,7 @@ if __name__ == "__main__":
     users_unrated_movies = users_ratings[users_ratings.isnull()]
     avg_ratings = pd.concat([users_unrated_movies, cluster.mean()], axis=1, join='inner').loc[:, 0]
 
-    # Display user's top 5 picks
+    # Display user's top 20 picks
     avg_ratings.sort_values(ascending=False)[:20]
     print(avg_ratings)
 
