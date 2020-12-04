@@ -115,8 +115,8 @@ def draw_clusters(data, max_users, max_movies):
         d = data[data.group == cluster_id].drop(['index', 'group'], axis=1)
         n_users_in_cluster = d.shape[0]
         d = get_dense_dataset(d, max_movies, max_users)
-        d = d.reindex_axis(d.mean().sort_values(ascending=False).index, axis=1)
-        d = d.reindex_axis(d.count(axis=1).sort_values(ascending=False).index)
+        d = d.reindex(d.mean().sort_values(ascending=False).index, axis=1)
+        d = d.reindex(d.count(axis=1).sort_values(ascending=False).index)
         d = d.iloc[:max_users, :max_movies]
         n_users_in_plot = d.shape[0]
         
@@ -205,17 +205,13 @@ if __name__ == "__main__":
     # Draw heatmap based on the formatted data gathered above to show distribution
     draw_heatmap(most_rated_movies_and_user_ratings)
     # Apply spare csr matrix to this to help with NULL values
-    max_number_movies = 1000
-    most_rated_movies_1000 = get_most_rated_movies(user_movie_ratings, max_number_movies)
-    # sp_arr = csr_matrix(most_rated_movies_1000.values)
-    # sdf = pd.DataFrame.sparse.from_spmatrix(sp_arr)
-    # sparse_ratings = sdf.sparse.to_coo()
-    sparse_ratings = csr_matrix(pd.SparseDataFrame(most_rated_movies_1000).to_coo())
-    # Apply KMeans to this dense data (ironically named sparse_data because of sparse() func)
-    predictions = KMeans(n_clusters=3, algorithm='full').fit_predict(sparse_ratings)
+    most_rated_movies_1k = get_most_rated_movies(user_movie_ratings, 1000)
+    sparse_ratings = csr_matrix(pd.SparseDataFrame(most_rated_movies_1k).to_coo())
+    # Cluster based on the sparse matrix
+    predictions = KMeans(n_clusters=20, algorithm='full').fit_predict(sparse_ratings)
     # Now visualize the clusters as a heatmap
     max_number_movies = 50
     max_number_users = 70
-    clusters = pd.concat([most_rated_movies_1000.reset_index(), pd.DataFrame({'group': predictions})], axis=1)
+    clusters = pd.concat([most_rated_movies_1k.reset_index(), pd.DataFrame({'group': predictions})], axis=1)
     draw_clusters(clusters, max_number_users, max_number_movies)
 
