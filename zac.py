@@ -23,7 +23,7 @@ xlabel = 'Avg ' + genre1 + ' rating'
 genre2 = 'Horror'
 ylabel = 'Avg ' + genre2 + ' rating'
 
-# Compare preferences of romance vs. comedy movies
+# Compare preferences of genre1 vs. genre2 movies
 def compare_genre_tastes(movies, ratings, genres, columns):
     gt = pd.DataFrame()
     for genre in genres:
@@ -39,7 +39,7 @@ gt = compare_genre_tastes(movies, ratings, [genre1, genre2], ['avg_genre1_rating
 # print(gt.head())
 
 # Curate the genre tastes so that the only users within it like 
-# either romance or comedy movies (rating for either is above 3.0)
+# either genre1 or genre2 movies (rating for either is above 3.0)
 gt = gt.drop(gt[(gt.avg_genre1_rating <= 2.5) & (gt.avg_genre2_rating <= 2.5)].index)
 # Remove rows with null ratings
 gt = gt.dropna(how='any', axis=0)
