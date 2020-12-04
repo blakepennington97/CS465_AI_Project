@@ -40,7 +40,9 @@ gt = compare_genre_tastes(movies, ratings, [genre1, genre2], ['avg_genre1_rating
 
 # Curate the genre tastes so that the only users within it like 
 # either genre1 or genre2 movies (rating for either is above 3.0)
-gt = gt.drop(gt[(gt.avg_genre1_rating <= 2.5) & (gt.avg_genre2_rating <= 2.5)].index)
+score1 = 3.2
+score2 = 2.5
+gt = gt[((gt['avg_genre1_rating'] < score1 - 0.2) & (gt['avg_genre2_rating'] > score2)) | ((gt['avg_genre2_rating'] < score1) & (gt['avg_genre1_rating'] > score2))]
 # Remove rows with null ratings
 gt = gt.dropna(how='any', axis=0)
 gt.info()
@@ -56,7 +58,7 @@ def draw_scatterplot(x_data, x_label, y_data, y_label):
     ax.scatter(x_data, y_data, s=25)
     plt.show()
 
-draw_scatterplot(gt['avg_genre1_rating'], xlabel, gt['avg_genre2_rating'], ylabel)
+# draw_scatterplot(gt['avg_genre1_rating'], xlabel, gt['avg_genre2_rating'], ylabel)
 
 # Use K-means to break the data down into hopefully 3 groups
 # 1. People who like genre1, but not genre2
